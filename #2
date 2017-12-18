@@ -1,0 +1,190 @@
+//imports necessary libraries
+import processing.sound.*;
+import processing.serial.*;
+import cc.arduino.*;
+
+Arduino arduino;// initializes arduino
+
+//sets up array for sound files
+SoundFile soundfile;
+SoundFile[] files = new SoundFile[2];
+
+StringList questions;// initiliazes list of strings to store question prompts 
+
+// initializes variables and values for both the "Yes" and "No" buttons
+int buttonY = 0;
+int buttonN = 0;
+//initializes variables and values for question number and question index within the list
+int responseIndex = 0;
+int questionNumber = 0;
+//initializes variables and values for last recoreded value for each button
+int buttonYLast = 0;
+int buttonNLast = 0;
+
+boolean responseY = false;
+boolean responseN = false;
+
+//long lastQuestionTime = 6000; //sets delay for timer
+//long questionTime = 1000*60*12;//sets time for each question to display in milliseconds*seconds*minutes
+
+
+// initializes and sets initial values for the variables to count how many times each button has been pressed
+int buttonYPresses[] = new int[15];
+int buttonNPresses[] = new int[15];
+
+void setup() {
+  //size(1300, 800);
+  fullScreen();
+
+  questions = new StringList();//sets up string list for questions
+
+  //adds questions to string list
+  questions.append("1. Are you scared to stand up for what you believe in?");
+  questions.append("2. Do you get high before class?");
+  questions.append("3. Is a hot dog a sandwich?");
+  questions.append("4. Do you wash your hands every time you visit the restroom?");
+  questions.append("5. Are you ok?");
+  questions.append("6. Are you happy with your major?");
+  questions.append("7. Ever drink alcohol from a shoe?");
+  questions.append("8. Do you see a therapist?");
+  questions.append("9. Has your car been broken into while parked at CCA?");
+  questions.append("10. Do you have a best friend at CCA?");
+  questions.append("11. Do you call yourself an artist?");
+  questions.append("12. Do you call yourself a designer??");
+  questions.append("13. Have you filled out a teacher review and felt it made a difference?");
+  questions.append("14. Are dogs better than cats?");
+  questions.append("15. Do you drink boba tea?");
+
+
+  //loads selected sound files from /data folder
+  files[0] = new SoundFile(this, "cheers.mp3");
+  files[1] = new SoundFile(this, "boos.mp3");
+  files[0].stop();
+  files[1].stop();
+
+  printArray(Serial.list());// Prints out the available serial ports. 
+
+  arduino = new Arduino(this, Arduino.list()[5], 57600);// enter the index of the serial port number corresponding to the Arduino board in the [] brackets
+}
+
+void draw() {
+  background(0);
+  getButtonValues();
+  //println("Y:" + buttonY + " N:" + buttonN);
+  displayQuestions();
+  playAudio();
+  drawTargets();
+  //drawMeter();
+  responseY = false; 
+  responseN = false;
+}
+
+void getButtonValues() {
+
+  buttonYLast = buttonY;//stores last value for "YES" button 
+  buttonY = arduino.analogRead(0);//gets current value for "Yes" button
+  buttonNLast = buttonN;//stores last value for "NO" button
+  buttonN = arduino.analogRead(1);//gets current value for "NO" button
+
+  int thresh = 900;
+  if (buttonY > thresh && buttonYLast <= thresh) {
+    responseY = true;
+    buttonYPresses[responseIndex]++;
+  } else {
+    //responseY = false;
+  }
+  if (buttonN > thresh && buttonNLast <= thresh) {
+    responseN = true;
+    buttonNPresses[responseIndex]++;
+  } else {
+    //responseN = false;
+  }
+}
+
+void displayQuestions() {
+  //sets font display settings
+  fill(255);
+  textSize(40);
+  textAlign(CENTER);
+
+  String currentQuestion = questions.get(questionNumber);//chooses question from list  
+  text(currentQuestion, 650, 120);//displays current question  
+
+  //long now = millis();//starts recording time
+  //checks to see if the alloted time/question has passed yet
+  //println(responseY, " ", responseN);
+  if (responseY == true || responseN == true) { 
+    //advances to next question
+    questionNumber++; 
+    responseIndex++;
+
+    //checks to see if end of questions list has been reached
+    if (questionNumber == questions.size()) {
+      questionNumber = 0;
+      responseIndex = 0;
+    }
+    //lastQuestionTime = now;
+  }
+}
+
+void drawTargets() {
+
+  noStroke();
+  fill(0, 255, 0);// sets fill color to GREEN
+  ellipse(350, 400, buttonY/3, buttonY/3);//draws circle based on current value for "YES" button
+  fill(255, 0, 0);// sets fill color to RED
+  ellipse(920, 400, buttonN/3, buttonN/3);//draws circle based on current value for "NO" button
+}
+
+void printTally() {
+  fill(255);
+  textSize(40);
+  text(java.util.Arrays.toString(buttonYPresses[]), 200, 500);
+}
+
+void drawMeter() {
+  //sets stroke and fill colors to WHITE
+  stroke(255);
+  strokeWeight(5);
+  fill(255);
+  line(100, 680, 1200, 680);//draws line along bottom of display
+  ellipse(700 + (buttonNPresses[responseIndex]*10) - (buttonYPresses[responseIndex]*10), 680, 40, 40);//draws circle based on difference between number of recorded "Yes" and "No" responses
+}
+
+void playAudio() {
+  //checks to see if "Yes" button has actually been pressed and increased press count
+  if (responseY == true) {
+    //Load a cheering soundfile from the /data folder of the sketch and play it back 
+    files[0].jump(1);
+    files[0].play();
+    buttonYPresses[responseIndex]++;
+  }
+  //checks to see if "No" button has actually been pressed and increased press count
+  if (responseN == true) {
+    //Load a booing soundfile from the /data folder of the sketch and play it back
+    files[1].jump(1);
+    files[1].play();
+    buttonNPresses[responseIndex]++;
+  }
+}
+
+void keyReleased() {
+  if (key == 'y') {
+    responseY = true;
+    println(responseY);
+    buttonYPresses[responseIndex]++;
+  }
+  if (key == 'n') {
+    responseN = true;
+    buttonNPresses[responseIndex]++;
+    println(responseN);
+  }
+  if (key == 'p') {
+    print("Y");
+    System.out.println(java.util.Arrays.toString(buttonYPresses));
+    //printArray(buttonYPresses);
+    print("N");
+    System.out.println(java.util.Arrays.toString(buttonNPresses));
+    //printArray(buttonNPresses);
+  }
+}
