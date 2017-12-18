@@ -1,0 +1,183 @@
+//imports necessary libraries
+//import ddf.minim.*;
+//import ddf.minim.analysis.*;
+//import ddf.minim.effects.*;
+//import ddf.minim.signals.*;
+//import ddf.minim.spi.*;
+//import ddf.minim.ugens.*;
+import processing.sound.*;
+import processing.serial.*;
+import cc.arduino.*;
+
+// initializes arduino 
+Arduino arduino;
+
+//sets up array for sound files
+SoundFile soundfile;
+SoundFile[] files = new SoundFile[2];
+
+// initiliazes list of strings to store question prompts
+StringList questions; 
+
+// initializes variables and values for both the "Yes" and "No" buttons
+int buttonY = 0;
+int buttonN = 0;
+//initializes variables and values for question number and question index within the list
+int questionIndex = 0;
+int questionNumber = 0;
+//initializes variables and values for last recoreded value for each button
+int buttonYLast = 0;
+int buttonNLast = 0;
+//sets delay for timer
+long lastQuestionTime = 6000; //starts timer
+//sets time for each question to display in milliseconds*seconds*minutes
+long questionTime = 1000*60*12;
+
+
+// initializes and sets initial values for the variables to count how many times each button has been pressed
+int buttonYPresses[] = new int[15];
+int buttonNPresses[] = new int[15];
+
+void setup() {
+  fullScreen();
+  
+  //sets up string list for questions
+  questions = new StringList();
+  //adds questions to string list
+  questions.append("Are you scared to stand up for what you believe in?");
+  questions.append("Do you get high before class?");
+  questions.append("Is a hot dog a sandwich?");
+  questions.append("Do you wash your hands every time you visit the restroom?");
+  questions.append("Are you ok?");
+  questions.append("Are you happy with your major?");
+  questions.append("Ever drink alcohol from a shoe?");
+  questions.append("Do you see a therapist?");
+  questions.append("Has your car been broken into while parked at CCA?");
+  questions.append("Do you have a best friend at CCA?");
+  questions.append("Do you call yourself an artist?");
+  questions.append("Do you call yourself a designer??");
+  questions.append("Have you filled out a teacher review and felt it made a difference?");
+  questions.append("Are dogs better than cats?");
+  questions.append("Do you drink boba tea?");
+  
+  
+  //loads selected sound files from /data folder
+  files[0] = new SoundFile(this, "cheers.mp3");
+  files[1] = new SoundFile(this, "boos.mp3");
+  files[0].stop();
+  files[1].stop();
+
+  // Prints out the available serial ports.
+  printArray(Serial.list()); 
+
+  // enter the index of the serial port number corresponding to the Arduino board in the [] brackets 
+  arduino = new Arduino(this, Arduino.list()[5], 57600);
+
+
+}
+
+void draw() {
+  background(0);
+  getButtonValues();
+  displayQuestions();
+  drawTargets();
+  drawMeter();
+  playAudio();
+  //println(buttonY, " ", buttonN);
+}
+
+void getButtonValues() {
+  //stores last value for "Yes" button 
+  buttonYLast = buttonY;
+
+  //gets current value for "Yes" button
+  buttonY = arduino.analogRead(0);
+
+  //stores last value for "No" button
+  buttonNLast = buttonN;
+
+  //gets current value for "No" button
+  buttonN = arduino.analogRead(1);
+}
+
+void displayQuestions() {
+  //sets font display settings
+  fill(255);
+  textSize(40);
+  textAlign(CENTER);
+
+  //chooses question from list
+  String currentQuestion = questions.get(questionNumber);  
+  //displays current question
+  text(currentQuestion, 650, 120);  
+  //starts recording time
+  long now = millis();
+  //checks to see if the alloted time/question has passed yet
+  if (now > lastQuestionTime + questionTime) { 
+    //advances to next question
+    questionNumber++; 
+    questionIndex++;
+    //checks to see if end of questions list has been reached
+    if (questionNumber == questions.size()) {
+      questionNumber = 0;
+      questionIndex = 0;
+      printArray(questions);
+    }
+    lastQuestionTime = now;
+  }
+}
+
+void drawTargets() {
+  // sets fill color to GREEN
+  noStroke();
+  fill(0, 255, 0);
+  //draws circle based on current value for "Yes" button
+  ellipse(350, 400, buttonY/3, buttonY/3);
+
+
+  // sets fill color to RED
+  noStroke();
+  fill(255, 0, 0);
+  //draws circle based on current value for "No" button
+  ellipse(920, 400, buttonN/3, buttonN/3);
+}
+
+void drawMeter() {
+  //sets stroke and fill colors to WHITE
+  stroke(255);
+  strokeWeight(5);
+  fill(255);
+  //draws line along bottom of display
+  line(100, 680, 1200, 700);
+  //draws circle based on difference between number of recorded "Yes" and "No" responses
+  ellipse(700 + (buttonNPresses[questionIndex]*10) - (buttonYPresses[questionIndex]*10), 680, 40, 40);
+}
+
+void playAudio() {
+  //checks to see if "No" button has actually been pressed and increased press count
+  //println(buttonN, " ", buttonY);
+  if (buttonN > 650 && buttonNLast <= 650) {
+    //Load a booing soundfile from the /data folder of the sketch and play it back
+    //file = new SoundFile(this, "boos.mp3"); 
+    files[1].jump(0);
+    files[1].play();
+    buttonNPresses[questionIndex]++;
+  }
+  //checks to see if "Yes" button has actually been pressed and increased press count
+  if (buttonY > 650 && buttonYLast <= 650) {
+    //Load a cheering soundfile from the /data folder of the sketch and play it back
+    files[0].jump(0);
+    files[0].play();
+    buttonYPresses[questionIndex]++;
+  }
+}
+
+void keyReleased() {
+  if (key == 'y') {
+    print("Yes");
+    printArray(buttonYPresses);
+  } else if (key == 'n') {
+    print("No");
+    printArray(buttonNPresses);
+  }
+}
